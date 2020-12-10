@@ -1,0 +1,10 @@
+#lang racket
+(require racket/include rackunit rackunit/text-ui rackunit/gui)
+(require "tree.rkt")
+
+(test/gui
+ (test-suite
+  "Tests"
+  (test-suite
+   "Tree?"
+   (test-case "Empty tree" (check-true (tree? "*"))))))

@@ -1,0 +1,41 @@
+#lang racket
+(define a "\u250C") ;┌
+(define b "\u2510") ;┐
+(define c "\u2500") ;─
+(define d "\u2514") ;└
+(define e "\u2518") ;┘
+(define f "\u2502") ;|
+
+(define (horizontal-line-helper str counter dec number)
+    (if (> counter (- (* number number) dec))
+        (string-append str b)
+        (horizontal-line-helper (string-append str c) (+ 1 counter) dec number)))
+
+(define (print-up-row number)
+  (if (even? number)
+      (horizontal-line-helper a 0 0 number)
+      (horizontal-line-helper a 0 1 number)))
+
+
+(define (vertical-line-helper-left str curr number)
+  (if (= curr number)
+      str
+      (vertical-line-helper-left (string-append f " " str) (+ curr 1) number))
+  )
+
+(define (vertical-line-helper-right str curr number)
+  (if (= curr number)
+      str
+      (vertical-line-helper-right (string-append str " " f) (+ curr 1) number))
+  )
+
+(define (put-vertical-line number isItLeft)
+  (if (= isItLeft 0)
+      (vertical-line-helper-left "" 1 number)
+      (vertical-line-helper-right "" 1 number)))
+    
+(print-up-row 2)
+(string-append (put-vertical-line 2 0) (print-up-row 1) (put-vertical-line 2 1))
+;(string-append (put-vertical-line 3 0) (print-up-row 1) (put-vertical-line 3 1))
+
+(define (accumulate 

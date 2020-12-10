@@ -1,0 +1,168 @@
+#lang racket
+(require racket/trace)
+(provide (all-defined-out))
+
+#|(define (tree? t)
+  (or (null? t)
+      (and (list? t)
+           (= (length t) 3))
+      (tree? (cadr t))
+      (tree? (caddr t))))
+|#
+
+(define root-tree car)
+(define left-tree cadr)
+(define right-tree caddr)
+(define empty-tree? null?)
+
+
+
+(define (get_number_index str ind)
+  (cond
+    ((not (char-numeric? (string-ref str ind))) ind)
+    (else
+     (get_number_index str (+ 1 ind)))))
+
+
+(define (loop str ind prevChar bracketCount starCount numbersCount openBracketCount )
+  (cond
+    ((and (= ind (string-length str)) (not (= 0 bracketCount))) #f) 
+    ((and (= ind (string-length str)) (= bracketCount 0) (equal? "}" prevChar) (= (+ 1 (* 2 openBracketCount)) numbersCount))  #t)
+    ((and (= ind (string-length str)) (= bracketCount 0) (equal? "}" prevChar) (< (+ 1 (* 2 openBracketCount)) numbersCount))  #f)
+    ((equal? " " (string (string-ref str ind))) (loop str (+ 1 ind) prevChar bracketCount starCount numbersCount openBracketCount ))
+    ((and (= bracketCount 0) (not (= ind (string-length str)))) #f)
+    ((< bracketCount 0) #f) 
+    ((and (char-numeric? (string-ref str ind)) (equal? "{" prevChar)) (loop str (get_number_index str ind) "number" bracketCount 0 (+ 1 numbersCount) openBracketCount))
+    ((and (char-numeric? (string-ref str ind)) (not (equal? "{" prevChar))) #f)
+    ((and (equal? prevChar "{") (and (not (char-numeric? (string-ref str ind))) (not (equal? " " (string (string-ref str ind)))))) #f)
+    ((and (equal? (string (string-ref str ind)) "{") (equal? prevChar "number")) (loop str (+ 1 ind) "{" (+ 1 bracketCount) 0 numbersCount (+ 1 openBracketCount)))
+    ((and (equal? (string (string-ref str ind)) "{") (equal? prevChar "*")) (loop str (+ 1 ind) "{" (+ 1 bracketCount) 0 numbersCount (+ 1 openBracketCount)))
+    ((and (equal? (string (string-ref str ind)) "{") (equal? prevChar "}")) (loop str (+ 1 ind) "{" (+ 1 bracketCount) 0 numbersCount (+ 1 openBracketCount)))
+    ((and (equal? (string (string-ref str ind)) "{") (equal? prevChar "{")) #f)
+    ((and (equal? (string (string-ref str ind)) "*") (equal? prevChar "number")) (loop str (+ 1 ind) "*" bracketCount (+ 1 starCount) (+ 1 numbersCount) openBracketCount))
+    ((and (equal? (string (string-ref str ind)) "*") (equal? prevChar "}")) (loop str (+ 1 ind) "*" bracketCount (+ 1 starCount ) (+ 1 numbersCount) openBracketCount))
+    ((and (equal? (string (string-ref str ind)) "*") (equal? prevChar "*") (= starCount 1)) (loop str (+ 1 ind) "*" bracketCount (+ 1 starCount) (+ 1 numbersCount) openBracketCount))
+    ((and (equal? (string (string-ref str ind)) "*") (equal? prevChar "*") (not (= starCount 1))) #f)
+    ((and (equal? (string (string-ref str ind)) "*") (not (equal? prevChar "number")) (not (equal? prevChar "*"))) #f)
+    ((and (equal? (string (string-ref str ind)) "}") (equal? prevChar "*")) (loop str (+ 1 ind) "}" (- bracketCount 1) 0 numbersCount openBracketCount))
+    ((and (equal? (string (string-ref str ind)) "}") (equal? prevChar "}")) (loop str (+ 1 ind) "}" (- bracketCount 1) 0 numbersCount openBracketCount))
+    ((and (equal? (string (string-ref str ind)) "}") (not (equal? prevChar "*")) (not (equal? prevChar "}"))) #f)
+    (else
+     #f))) 
+
+(define (tree? str)
+  (cond
+    ((= 0 (string-length str)) #f)
+    ((equal? " " (string (string-ref str 0))) (tree? (substring str 1)))
+    ((and (equal? "*" (string (string-ref str 0))) (= 1 (string-length str))) #t)
+    ((equal? "{" (string (string-ref str 0))) (loop (substring str 1) 0 "{" 1 0 0 1))
+    (else #f)))
+
+
+
+
+(define (get_index_of_closing_bracket str ind bracketsCount)
+  (cond
+    ((equal? (string (string-ref str ind)) "{") (get_index_of_closing_bracket str (+ 1 ind) (+ 1 bracketsCount)))
+    ((and (<= bracketsCount 1) (equal? (string (string-ref str ind)) "}")) ind)
+    ((equal? (string (string-ref str ind)) "}") (get_index_of_closing_bracket str (+ 1 ind) (- bracketsCount 1)))
+    (else
+     (get_index_of_closing_bracket str (+ 1 ind) bracketsCount))))
+
+(define (get_root_number str ind)
+  (string->number (substring str ind (get_number_index str ind))))
+  
+(define (remove-spaces str ind res)
+  (cond
+    ((= ind (string-length str)) res)
+    ((not (equal? (string (string-ref str ind)) " ")) (remove-spaces str (+ 1 ind) (string-append res (string (string-ref str ind)))))
+    (else
+     (remove-spaces str (+ 1 ind) res))))
+
+(define (string->tree str)
+  (define (make-tree str ind)
+    (cond
+      ((= ind (string-length str)) '())
+      ((equal? (string (string-ref str ind)) "*") '())
+      ((char-numeric? (string-ref str ind)) (list (get_root_number str ind) (make-tree str (get_number_index str ind))
+                                                  (make-tree str
+                                                             (if (equal? (string (string-ref str (get_number_index str ind))) "*")
+                                                                 (+ 1 (get_number_index str ind))
+                                                                 (+ 1 (get_index_of_closing_bracket str ind 0))))))
+      (else
+       (make-tree str (+ 1 ind)))))
+  (if (tree? str)
+      (make-tree (remove-spaces str 0 "") 0)
+      #f))
+
+
+(define (tree-level tree n)
+  (define (helper n tree ind res)
+    (cond
+      ((empty-tree? tree) '())
+      ((= ind n) (root-tree tree))
+      (else (append res (list (helper n (left-tree tree) (+ ind 1) res)) (list (helper n (right-tree tree) (+ ind 1) res))))))
+  (helper n tree 0 '()))
+
+(define (level n tree)
+  (cond [(empty? tree) '()]
+        [(zero? n) (list (root-tree tree))]
+        [else (append (level (- n 1) (left-tree tree))
+                      (level (- n 1) (right-tree tree)))]))
+
+(define (maxdepth tree)
+  (cond 
+    [(null? tree) 0]
+    [else (+ 1 (max (maxdepth (left-tree  tree))
+                    (maxdepth (right-tree tree))))]))
+
+(define (balanced? tree)
+  (if
+   (empty-tree? tree)
+   #t
+   (and (<= (abs (- (maxdepth (left-tree tree)) (maxdepth (right-tree tree)))) 1) (balanced? (left-tree tree)) (balanced? (right-tree tree)))))
+
+
+(define (ordered? tree)
+  (define (helper tree prevRoot op?)
+    (cond
+      ((empty-tree? tree) 0)
+      ((equal? prevRoot "first") (+ 0 (helper (left-tree tree) (root-tree tree) <) (helper (right-tree tree) (root-tree tree) >)))
+      ((not (op? (root-tree tree) prevRoot)) 1)
+      (else
+       (+ 0 (helper (left-tree tree) (root-tree tree) <) (helper (right-tree tree) (root-tree tree) >)))))
+
+  (if (> (helper tree "first" <) 0) #f #t))
+
+(define ordered-tree (string->tree "{2 {1 * *} {3 * *}}"))
+
+(define (tree->string tree)
+  (cond
+    ((empty-tree? tree) "*")
+    ((and (empty-tree? (left-tree tree)) (empty-tree? (right-tree tree))) (~a "{" (root-tree tree) " " "* *}"))
+    ((empty-tree? (right-tree tree)) (~a "{" (root-tree tree) " " (tree->string (left-tree tree)) " " (tree->string (right-tree tree)) "}"))
+    ((empty-tree? (left-tree tree)) (~a "{" (root-tree tree) " " (tree->string (left-tree tree) "* }")))
+    (else
+    (~a "{" (root-tree tree) " " (tree->string (left-tree tree)) " " (tree->string (right-tree tree)) "}"))))
+
+
+(define (stream-preorder tree)
+  (if (empty? tree) empty-stream
+      (stream-append (stream (root-tree tree)) (stream-preorder (left-tree tree)) (stream-preorder (right-tree tree)))))
+
+(define (stream-inorder tree)
+  (if (empty? tree) empty-stream
+      (stream-append (stream-inorder (left-tree tree)) (stream (root-tree tree)) (stream-inorder (right-tree tree)))))
+
+(define (stream-postorder tree)
+  (if (empty? tree) empty-stream
+      (stream-append (stream-postorder (left-tree tree)) (stream-postorder (right-tree tree)) (stream (root-tree tree)))))
+
+
+(define (tree->stream tree order)
+  (cond
+    ((equal? order 'preorder) (stream-preorder tree))
+    ((equal? order 'inorder) (stream-inorder tree))
+    ((equal? order 'postorder) (stream-postorder tree))
+    (else
+     #f)))

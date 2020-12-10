@@ -1,0 +1,43 @@
+#lang racket
+
+
+(define (to-binary-string number)
+  (number->string number 2))
+
+(define (string-to-number str)
+  (string->number str 2))
+
+
+
+(define (accumulate start end null-value op next term)
+  (define (loop index result)
+    (if (> index end)
+        result
+        (loop (next index) (op result (term index)))))
+  (loop start null-value)
+)
+
+(define (find-bigger str number)
+  (if (>= (string-length str) number)
+      (string-length str)
+      number))
+(define (len set)
+  (string-length (to-binary-string set)))
+
+(define (set-add set elem)
+  (define bin (to-binary-string set))
+  (cond
+    ((= (len set) elem) set)
+    ((> elem (len set)) (string-to-number(string-append (string-append "1" (make-string (- elem (len set)) #\0)) bin)))
+    (else
+     (string-to-number(string-append (substring bin 0 (- (len set) 1 elem)) "1" (substring bin (- (len set) elem)))))))
+
+(define (set-remove set elem)
+  (define bin (to-binary-string set))
+  (string-to-number (string-append (substring bin 0 (- (len set) 1 elem)) "0" (substring bin (- (len set) elem)))))
+
+(define (set-contains? set elem)
+  (define bin (to-binary-string set))
+  (equal? (string (string-ref bin (- (len set) 1 elem))) "1"))
+
+(set-contains? 35 6)
